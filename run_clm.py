@@ -81,7 +81,6 @@ class ModelArguments:
     """
 
     model_name_or_path: Optional[str] = field(
-        # default="kakaobrain/kogpt",
         default=MODEL_NAME,
         metadata={
             "help": "The model checkpoint for weights initialization."
@@ -89,7 +88,6 @@ class ModelArguments:
         },
     )
     model_revision: str = field(
-        # default="KoGPT6B-ryan1.5b-float16",
         default=REVISIONS[MODEL_NAME],
         metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
