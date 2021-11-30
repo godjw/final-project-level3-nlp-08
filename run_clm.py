@@ -63,14 +63,12 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 @dataclass
 class ModelNames:
     kogpt_skt_trinity = "skt/ko-gpt-trinity-1.2B-v0.5"
-    kogpt_kakaobrain_fp32 = "kakaobrain/kogpt"
-    kogpt_kakaobrain_fp16 = "kakaobrain/kogpt"
+    kogpt_kakaobrain = "kakaobrain/kogpt"
 
 
 REVISIONS = {
     ModelNames.kogpt_skt_trinity: "main",
-    ModelNames.kogpt_kakaobrain_fp32: "KoGPT6B-ryan1.5b-float16",
-    ModelNames.kogpt_kakaobrain_fp16: "KoGPT6B-ryan1.5b-float16"
+    ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b-float16"
 }
 
 MODEL_NAME = ModelNames.kogpt_skt_trinity
