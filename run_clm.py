@@ -66,10 +66,7 @@ class ModelNames:
     kogpt_kakaobrain = "kakaobrain/kogpt"
 
 
-REVISIONS = {
-    ModelNames.kogpt_skt_trinity: "main",
-    ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b-float16"
-}
+REVISIONS = {ModelNames.kogpt_skt_trinity: "main", ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b-float16"}
 
 MODEL_NAME = ModelNames.kogpt_skt_trinity
 
@@ -151,10 +148,11 @@ class DataTrainingArguments:
         metadata={"help": "The configuration name of the dataset to use (via the datasets library)."},
     )
     train_file: Optional[str] = field(
-        default="/opt/ml/data/poem_data_train.csv", metadata={"help": "The input training data file (a text file)."}
+        default="/opt/ml/data/total.csv",
+        metadata={"help": "The input training data file (a text file)."},
     )
     validation_file: Optional[str] = field(
-        default="/opt/ml/data/poem_data_val.csv",
+        default=None,
         metadata={
             "help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."
         },
@@ -186,7 +184,7 @@ class DataTrainingArguments:
         default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
     validation_split_percentage: Optional[int] = field(
-        default=5,
+        default=10,
         metadata={
             "help": "The percentage of the train set used as validation set in case there's no validation split"
         },
@@ -253,15 +251,19 @@ class TrainingArguments(_TrainingArguments):
     )
 
     gradient_accumulation_steps: int = field(
-        default=107,
+        default=77,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
-    learning_rate: float = field(default=5e-5, metadata={"help": "The initial learning rate for AdamW."})
+    learning_rate: float = field(default=1.18254137665091e-05, metadata={"help": "The initial learning rate for AdamW."})
     weight_decay: float = field(default=0.0, metadata={"help": "Weight decay for AdamW if we apply some."})
+    adam_beta1: float = field(default=0.9, metadata={"help": "Beta1 for AdamW optimizer"})
+    adam_beta2: float = field(default=0.999, metadata={"help": "Beta2 for AdamW optimizer"})
+    adam_epsilon: float = field(default=1e-8, metadata={"help": "Epsilon for AdamW optimizer."})
+    max_grad_norm: float = field(default=1.0, metadata={"help": "Max gradient norm."})
 
     num_train_epochs: float = field(
-        default=20.0, metadata={"help": "Total number of training epochs to perform."}
+        default=5.0, metadata={"help": "Total number of training epochs to perform."}
     )
     lr_scheduler_type: SchedulerType = field(
         default=SchedulerType.LINEAR,
@@ -285,7 +287,7 @@ class TrainingArguments(_TrainingArguments):
         },
     )
     seed: int = field(
-        default=42, metadata={"help": "Random seed that will be set at the beginning of training."}
+        default=47, metadata={"help": "Random seed that will be set at the beginning of training."}
     )
 
     fp16: bool = field(
@@ -435,17 +437,6 @@ def main():
             extension = "text"
             dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
 
-        # data_files = {"train": []}
-        # dataset_args = {}
-        # for d in os.listdir(base := "/opt/ml/data/신춘문예_19"):
-        #     if os.path.isdir(dir := os.path.join(base, d)):
-        #         for p in os.listdir(dir):
-        #             if p.split(".")[-1] == "txt":
-        #                 data_files["train"].append(os.path.join(dir, p))
-
-        # extension = "text"
-        # dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
-
         raw_datasets = load_dataset(
             extension, data_files=data_files, cache_dir=model_args.cache_dir, **dataset_args
         )
@@ -532,7 +523,7 @@ def main():
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
-            examples[text_column_name] = [ex.replace("\n", "") for ex in examples[text_column_name]]
+            examples[text_column_name] = list(map(lambda x: str(x), examples[text_column_name]))
             output = tokenizer(examples[text_column_name])
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
