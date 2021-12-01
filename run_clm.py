@@ -151,10 +151,10 @@ class DataTrainingArguments:
         metadata={"help": "The configuration name of the dataset to use (via the datasets library)."},
     )
     train_file: Optional[str] = field(
-        default="/opt/ml/data/poem_data_train.csv", metadata={"help": "The input training data file (a text file)."}
+        default="/opt/ml/plmdata/poem_train.csv", metadata={"help": "The input training data file (a text file)."}
     )
     validation_file: Optional[str] = field(
-        default="/opt/ml/data/poem_data_val.csv",
+        default="/opt/ml/plmdata/poem_validation.csv",
         metadata={
             "help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."
         },
@@ -246,22 +246,22 @@ class TrainingArguments(_TrainingArguments):
     )
 
     per_device_train_batch_size: int = field(
-        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
+        default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
     )
     per_device_eval_batch_size: int = field(
-        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
+        default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
     )
 
     gradient_accumulation_steps: int = field(
-        default=107,
+        default=1,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
-    learning_rate: float = field(default=5e-5, metadata={"help": "The initial learning rate for AdamW."})
+    learning_rate: float = field(default=1e-5, metadata={"help": "The initial learning rate for AdamW."})
     weight_decay: float = field(default=0.0, metadata={"help": "Weight decay for AdamW if we apply some."})
 
     num_train_epochs: float = field(
-        default=20.0, metadata={"help": "Total number of training epochs to perform."}
+        default=50.0, metadata={"help": "Total number of training epochs to perform."}
     )
     lr_scheduler_type: SchedulerType = field(
         default=SchedulerType.LINEAR,
@@ -276,7 +276,7 @@ class TrainingArguments(_TrainingArguments):
         metadata={"help": "The checkpoint save strategy to use."},
     )
     save_total_limit: Optional[int] = field(
-        default=1,
+        default=2,
         metadata={
             "help": (
                 "Limit the total amount of checkpoints. "
