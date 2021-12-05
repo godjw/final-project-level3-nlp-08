@@ -52,7 +52,7 @@ NUM_P = 5
     """,
     GPT2_START_DOCSTRING,
 )
-class GPT2PrefixTuningLMHeadModel(GPT2PreTrainedModel):
+class GPT2PrefixTuningForCausalLM(GPT2PreTrainedModel):
     _keys_to_ignore_on_load_missing = [r"attn.masked_bias", r"attn.bias", r"lm_head.weight"]
 
     def __init__(self, config):
