@@ -35,6 +35,7 @@ from transformers import (
     CONFIG_MAPPING,
     MODEL_FOR_CAUSAL_LM_MAPPING,
     AutoConfig,
+    GPTJConfig,
     AutoTokenizer,
     HfArgumentParser,
     Trainer,
@@ -49,7 +50,8 @@ from transformers.utils.versions import require_version
 
 import wandb
 
-from models.prefix_tuning.gpt2 import GPT2PrefixTuningLMHeadModel, NUM_P
+from models.prefix_tuning.gpt2 import GPT2PrefixTuningForCausalLM, NUM_P
+from models.prefix_tuning.gptj import GPTJPrefixTuningForCausalLM
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.12.5")
@@ -70,8 +72,24 @@ class ModelNames:
 
 
 REVISIONS = {ModelNames.kogpt_skt_trinity: None, ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b"}
+SPECIAL_TOKENS = {
+    ModelNames.kogpt_skt_trinity: {
+        "bos_token": "<s>",
+        "eos_token": "</s>",
+        "unk_token": "<unk>",
+        "pad_token": "<pad>",
+        "mask_token": "<mask>",
+    },
+    ModelNames.kogpt_kakaobrain: {
+        "bos_token": "[BOS]",
+        "eos_token": "[EOS]",
+        "unk_token": "[UNK]",
+        "pad_token": "[PAD]",
+        "mask_token": "[MASK]",
+    },
+}
 
-MODEL_NAME = ModelNames.kogpt_skt_trinity
+MODEL_NAME = ModelNames.kogpt_kakaobrain
 
 
 @dataclass
@@ -247,14 +265,14 @@ class TrainingArguments(_TrainingArguments):
     )
 
     per_device_train_batch_size: int = field(
-        default=2, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
+        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
     )
     per_device_eval_batch_size: int = field(
-        default=2, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
+        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
     )
 
     gradient_accumulation_steps: int = field(
-        default=44,
+        default=88,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
@@ -485,21 +503,20 @@ def main():
             logger.info(f"Overriding config: {model_args.config_overrides}")
             config.update_from_string(model_args.config_overrides)
             logger.info(f"New config: {config}")
+    
+    if isinstance(config, GPTJConfig):
+        config.tie_word_embeddings = False
 
     tokenizer_kwargs = {
         "cache_dir": model_args.cache_dir,
         "use_fast": model_args.use_fast_tokenizer,
         "revision": model_args.model_revision,
         "use_auth_token": True if model_args.use_auth_token else None,
-        "bos_token": "<s>",
-        "eos_token": "</s>",
-        "unk_token": "<unk>",
-        "pad_token": "<pad>",
-        "mask_token": "<mask>",
+        **SPECIAL_TOKENS[MODEL_NAME],
     }
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
 
-    model = GPT2PrefixTuningLMHeadModel.from_pretrained(
+    model = GPTJPrefixTuningForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         revision=model_args.model_revision,
         pad_token_id=tokenizer.eos_token_id,
@@ -606,7 +623,8 @@ def main():
         if data_args.max_eval_samples is not None:
             eval_dataset = eval_dataset.select(range(data_args.max_eval_samples))
 
-    if training_args.metric_for_best_model:
+    metric_other_than_loss = training_args.metric_for_best_model != "loss"
+    if metric_other_than_loss:
         metric = load_metric(training_args.metric_for_best_model)
 
         def compute_metrics(predictions, references):
@@ -621,7 +639,7 @@ def main():
         tokenizer=tokenizer,
         # Data collator will default to DataCollatorWithPadding, so we change it.
         data_collator=default_data_collator,
-        compute_metrics=compute_metrics if training_args.metric_for_best_model else None,
+        compute_metrics=compute_metrics if metric_other_than_loss else None,
     )
 
     # Training
@@ -680,14 +698,15 @@ def main():
 
 
 if __name__ == "__main__":
-    # os.environ["WANDB_DISABLED"] = "true"
+    os.environ["WANDB_DISABLED"] = "true"
+    # os.environ['WANDB_WATCH'] = 'false'
 
-    wandb.login()
-    wandb.init(
-        project="prefix_tuning",
-        entity="lexiconium",
-        name="kogpt_trinity_vanilla_with_entire_data",
-        group="clm",
-    )
+    # wandb.login()
+    # wandb.init(
+    #     project="prefix_tuning",
+    #     entity="lexiconium",
+    #     name="kogpt_kakaobrain8layers_with_entire_data",
+    #     group="clm",
+    # )
 
     main()
