@@ -2,3 +2,7 @@ poem/
 outputs/
 wandb/
 poem/
+train2014/
+val2014/
+MSCOCO_train_val_Korean.json
+output/
