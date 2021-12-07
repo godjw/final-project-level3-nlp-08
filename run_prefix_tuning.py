@@ -89,7 +89,7 @@ SPECIAL_TOKENS = {
     },
 }
 
-MODEL_NAME = ModelNames.kogpt_kakaobrain
+MODEL_NAME = ModelNames.kogpt_skt_trinity
 
 
 @dataclass
@@ -265,14 +265,14 @@ class TrainingArguments(_TrainingArguments):
     )
 
     per_device_train_batch_size: int = field(
-        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
+        default=2, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
     )
     per_device_eval_batch_size: int = field(
-        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
+        default=2, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
     )
 
     gradient_accumulation_steps: int = field(
-        default=88,
+        default=128,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
@@ -347,6 +347,12 @@ class TrainingArguments(_TrainingArguments):
     )
     greater_is_better: Optional[bool] = field(
         default=False, metadata={"help": "Whether the `metric_for_best_model` should be maximized or not."}
+    )
+    deepspeed: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Enable deepspeed and pass the path to deepspeed json config file (e.g. ds_config.json) or an already loaded json file as a dict"
+        },
     )
     group_by_length: bool = field(
         default=False,
@@ -516,7 +522,7 @@ def main():
     }
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
 
-    model = GPTJPrefixTuningForCausalLM.from_pretrained(
+    model = GPT2PrefixTuningForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         revision=model_args.model_revision,
         pad_token_id=tokenizer.eos_token_id,
@@ -698,15 +704,15 @@ def main():
 
 
 if __name__ == "__main__":
-    os.environ["WANDB_DISABLED"] = "true"
-    # os.environ['WANDB_WATCH'] = 'false'
+    # os.environ["WANDB_DISABLED"] = "true"
+    os.environ['WANDB_WATCH'] = 'false'
 
-    # wandb.login()
-    # wandb.init(
-    #     project="prefix_tuning",
-    #     entity="lexiconium",
-    #     name="kogpt_kakaobrain8layers_with_entire_data",
-    #     group="clm",
-    # )
+    wandb.login()
+    wandb.init(
+        project="prefix_tuning",
+        entity="lexiconium",
+        name="kogpt_trinity_vanilla_with_poem_data",
+        group="clm",
+    )
 
     main()
