@@ -25,16 +25,18 @@ import os
 import sys
 from dataclasses import dataclass, field
 from itertools import chain
+from tarfile import BLOCKSIZE
 from typing import Optional
 
 import datasets
-from datasets import load_dataset
+from datasets import load_dataset, load_metric
 
 import transformers
 from transformers import (
     CONFIG_MAPPING,
     MODEL_FOR_CAUSAL_LM_MAPPING,
     AutoConfig,
+    GPTJConfig,
     AutoModelForCausalLM,
     AutoTokenizer,
     HfArgumentParser,
@@ -47,6 +49,8 @@ from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint, IntervalStrategy, SchedulerType
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
+
+import wandb
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.12.5")
@@ -66,7 +70,23 @@ class ModelNames:
     kogpt_kakaobrain = "kakaobrain/kogpt"
 
 
-REVISIONS = {ModelNames.kogpt_skt_trinity: "main", ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b-float16"}
+REVISIONS = {ModelNames.kogpt_skt_trinity: None, ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b"}
+SPECIAL_TOKENS = {
+    ModelNames.kogpt_skt_trinity: {
+        "bos_token": "<s>",
+        "eos_token": "</s>",
+        "unk_token": "<unk>",
+        "pad_token": "<pad>",
+        "mask_token": "<mask>",
+    },
+    ModelNames.kogpt_kakaobrain: {
+        "bos_token": "[BOS]",
+        "eos_token": "[EOS]",
+        "unk_token": "[UNK]",
+        "pad_token": "[PAD]",
+        "mask_token": "[MASK]",
+    },
+}
 
 MODEL_NAME = ModelNames.kogpt_skt_trinity
 
@@ -251,22 +271,22 @@ class TrainingArguments(_TrainingArguments):
     )
 
     gradient_accumulation_steps: int = field(
-        default=77,
+        default=256,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
-    learning_rate: float = field(default=1.18254137665091e-05, metadata={"help": "The initial learning rate for AdamW."})
-    weight_decay: float = field(default=0.0, metadata={"help": "Weight decay for AdamW if we apply some."})
+    learning_rate: float = field(default=2e-05, metadata={"help": "The initial learning rate for AdamW."})
+    weight_decay: float = field(default=0.1908, metadata={"help": "Weight decay for AdamW if we apply some."})
     adam_beta1: float = field(default=0.9, metadata={"help": "Beta1 for AdamW optimizer"})
     adam_beta2: float = field(default=0.999, metadata={"help": "Beta2 for AdamW optimizer"})
     adam_epsilon: float = field(default=1e-8, metadata={"help": "Epsilon for AdamW optimizer."})
     max_grad_norm: float = field(default=1.0, metadata={"help": "Max gradient norm."})
 
     num_train_epochs: float = field(
-        default=5.0, metadata={"help": "Total number of training epochs to perform."}
+        default=50.0, metadata={"help": "Total number of training epochs to perform."}
     )
     lr_scheduler_type: SchedulerType = field(
-        default=SchedulerType.LINEAR,
+        default=SchedulerType.COSINE_WITH_RESTARTS,
         metadata={"help": "The scheduler type to use."},
     )
     warmup_ratio: float = field(
@@ -274,7 +294,7 @@ class TrainingArguments(_TrainingArguments):
     )
 
     save_strategy: IntervalStrategy = field(
-        default="epoch",
+        default=IntervalStrategy.EPOCH,
         metadata={"help": "The checkpoint save strategy to use."},
     )
     save_total_limit: Optional[int] = field(
@@ -287,7 +307,7 @@ class TrainingArguments(_TrainingArguments):
         },
     )
     seed: int = field(
-        default=47, metadata={"help": "Random seed that will be set at the beginning of training."}
+        default=43, metadata={"help": "Random seed that will be set at the beginning of training."}
     )
 
     fp16: bool = field(
@@ -325,7 +345,13 @@ class TrainingArguments(_TrainingArguments):
         default=None, metadata={"help": "The metric to use to compare two different models."}
     )
     greater_is_better: Optional[bool] = field(
-        default=None, metadata={"help": "Whether the `metric_for_best_model` should be maximized or not."}
+        default=False, metadata={"help": "Whether the `metric_for_best_model` should be maximized or not."}
+    )
+    deepspeed: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Enable deepspeed and pass the path to deepspeed json config file (e.g. ds_config.json) or an already loaded json file as a dict"
+        },
     )
     group_by_length: bool = field(
         default=False,
@@ -483,16 +509,15 @@ def main():
             config.update_from_string(model_args.config_overrides)
             logger.info(f"New config: {config}")
 
+    if isinstance(config, GPTJConfig):
+        config.tie_word_embeddings = False
+
     tokenizer_kwargs = {
         "cache_dir": model_args.cache_dir,
         "use_fast": model_args.use_fast_tokenizer,
         "revision": model_args.model_revision,
         "use_auth_token": True if model_args.use_auth_token else None,
-        "bos_token": "<s>",
-        "eos_token": "</s>",
-        "unk_token": "<unk>",
-        "pad_token": "<pad>",
-        "mask_token": "<mask>",
+        **SPECIAL_TOKENS[MODEL_NAME],
     }
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
 
@@ -502,13 +527,8 @@ def main():
         pad_token_id=tokenizer.eos_token_id,
         cache_dir=model_args.cache_dir,
         use_auth_token=True if model_args.use_auth_token else None,
-        # torch_dtype="auto",
     )
     model.resize_token_embeddings(len(tokenizer))
-    # for name, module in model.named_children():
-    #     if name == "transformer":
-    #         for param in module.parameters():
-    #             param.requires_grad = False
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
@@ -605,6 +625,13 @@ def main():
         if data_args.max_eval_samples is not None:
             eval_dataset = eval_dataset.select(range(data_args.max_eval_samples))
 
+    metric_other_than_loss = training_args.metric_for_best_model != "loss"
+    if metric_other_than_loss:
+        metric = load_metric(training_args.metric_for_best_model)
+
+        def compute_metrics(predictions, references):
+            return metric.compute(predictions=predictions, references=references)
+
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
@@ -614,6 +641,7 @@ def main():
         tokenizer=tokenizer,
         # Data collator will default to DataCollatorWithPadding, so we change it.
         data_collator=default_data_collator,
+        compute_metrics=compute_metrics if metric_other_than_loss else None,
     )
 
     # Training
@@ -672,4 +700,15 @@ def main():
 
 
 if __name__ == "__main__":
+    # os.environ["WANDB_DISABLED"] = "true"
+    os.environ['WANDB_WATCH'] = 'false'
+
+    wandb.login()
+    wandb.init(
+        project="base",
+        entity="lexiconium",
+        name="kogpt_trinity_vanilla_with_entire_data",
+        group="clm",
+    )
+
     main()
