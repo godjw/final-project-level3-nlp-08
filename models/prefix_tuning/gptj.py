@@ -112,10 +112,10 @@ class GPTJPrefixTuningForCausalLM(GPTJPreTrainedModel):
         torch.cuda.empty_cache()
 
     def get_output_embeddings(self):
-        return None
+        return self.lm_head
 
     def set_output_embeddings(self, new_embeddings):
-        return
+        self.lm_head = new_embeddings
 
     def prepare_inputs_for_generation(self, input_ids, past=None, **kwargs):
         token_type_ids = kwargs.get("token_type_ids", None)
@@ -196,7 +196,9 @@ class GPTJPrefixTuningForCausalLM(GPTJPreTrainedModel):
             input_ids = None
 
         attention_mask = torch.cat([attention_mask[..., :1]] * NUM_P + [attention_mask], dim=-1)
-        token_type_ids = torch.cat([token_type_ids[..., :1]] * NUM_P + [token_type_ids], dim=-1)
+        
+        if isinstance(token_type_ids, torch.Tensor):
+            token_type_ids = torch.cat([token_type_ids[..., :1]] * NUM_P + [token_type_ids], dim=-1)
 
         if isinstance(position_ids, torch.Tensor):
             position_ids = attention_mask.long().cumsum(-1) - 1
