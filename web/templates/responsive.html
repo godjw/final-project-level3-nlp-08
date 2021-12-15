@@ -32,54 +32,47 @@
     <h3 class="ui center aligned header">Generate poem from image with AI</h3>
 
     <div class="ui text container">
-        <h2>Select a file to upload</h2>
-        <p>
-            {% with messages = get_flashed_messages() %}
-            {% if messages %}
-        <ul>
-            {% for message in messages %}
-            <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        {% endwith %}
-        </p>
-        {% if filename %}
-        <div>
-            <img src="{{ url_for('display_image', filename=filename) }}" width="224" height="224">
-        </div>
-        {% endif %}
-        <form method="post" action="/" enctype="multipart/form-data">
-            <dl>
-                <p>
-                    <input type="file" name="file" autocomplete="off" required>
-                </p>
-            </dl>
-            <p>
-                <input type="submit" value="Submit">
-            </p>
-        </form>
-    </div>
-
-    <h3 class="ui center aligned header">Text Container</h3>
-    <div class="ui text container">
 
         <div class="ui placeholder segment">
-            <div class="ui icon header">
-                <i class="upload icon"></i>
-                Select a image.
+            <!-- <h2>Select a file to upload</h2> -->
+            <p>
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+            <ul>
+                {% for message in messages %}
+                <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% endwith %}
+            </p>
+            {% if filename %}
+            <div>
+                <img class="ui centered medium image" src="{{ url_for('display_image', filename=filename) }}"
+                    width="224" height="224">
             </div>
+            {% endif %}
+            <form method="post" action="/" enctype="multipart/form-data">
+                <dl>
+                    <p>
+                        <input type="file" name="file" class="inputfile" id="embedpollfileinput" autocomplete="off"
+                            required>
 
-            <input type="file" (change)="fileEvent($event)" class="inputfile" id="embedpollfileinput" />
-
-            <label for="embedpollfileinput" class="ui large green right floated button">
-                <i class="ui upload icon"></i>
-                Upload image
-            </label>
-
-            <br>
-
-            <div class="ui primary button">Generate</div>
+                        <label for="embedpollfileinput" class="ui large green center floated button">
+                            <i class="ui upload icon"></i>
+                            Upload image
+                        </label>
+                    </p>
+                </dl>
+                <p>
+                    <input type="submit" name="submit" class="inputfile" id="embedpollsubmitfileinput"
+                        autocomplete="off" required>
+                    <label for="embedpollsubmitfileinput" class="ui large red center floated button">
+                        <i class="ui check icon"></i>
+                        submit
+                    </label>
+                </p>
+            </form>
 
             <style>
                 .grid.container {
@@ -97,42 +90,127 @@
             </style>
         </div>
 
+    </div>
+
+    <!-- <h3 class="ui center aligned header">Text Container</h3> -->
+    <!-- <div class="ui text container">
+
+        <div class="ui placeholder segment">
+            <div class="ui icon header">
+                <i class="upload icon"></i>
+                Select a image.
+            </div>
+
+            <input type="file" (change)="fileEvent($event)" class="inputfile" id="embedpollfileinput" />
+
+            <label for="embedpollfileinput" class="ui large green right floated button">
+                <i class="ui upload icon"></i>
+                Upload image
+            </label>
+
+            <br>
 
 
-        <div class="ui middle aligned center aligned grid container">
-            <div class="ui card">
-                <div class="image">
-                    <img src="https://semantic-ui.com/images/movies/watchmen-horizontal.jpg">
+        </div> -->
+
+    <div class="ui middle aligned center aligned grid container">
+        <!-- <input type="button" class="ui primary button" id="generate_button" onclick="generate_button({filename});"
+                value="Generate" /> -->
+        <input type="button" class="ui primary button" value="Generate"
+            onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
+
+        <!-- <form method="post" action="/" enctype="multipart/form-data">
+                <input type="button" class="ui primary button" value="Generate"
+                    onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
+            </form> -->
+        <!-- <form action="{{ url_for('generate', filename=filename) }}" method="post">
+                <input type="button" class="ui primary button" value="Generate">
+            </form> -->
+    </div>
+    <!-- <script>
+            location.href = Flask.url_for('generate', filename = filename)
+            // {
+            //     { url_for('generate', filename = filename) }
+            // }
+            // function generate_button(filename) {
+            //     { url_for('generate', filename = filename) }
+            // }
+        </script> -->
+    <!-- </div> -->
+
+    <div class="ui middle aligned center aligned grid container">
+        {% if generated_poem %}
+        <div class="ui card">
+            <div class="image">
+                <img src="{{ url_for('display_image', filename=filename) }}" width="224" height="224">
+            </div>
+            <div class="content">
+                <div class="header">Watchmen</div>
+                <div class="description">
+                    {{ generated_poem }}
                 </div>
-                <div class="content">
-                    <div class="header">Watchmen</div>
-                    <div class="description">
-                        선로에 놓여진 붉은 열차는
-                        지금의 시간을 말해주고 있었다.<br>
-                        어떤 이들도 알아채지
-                        못했지만 모두들 알고 있던 그 시간.<br>
-                        나는 아직도 그때의 내가 너무 미워서
-                        눈앞에 아른아르고 있다.
-                        선로에 놓여진 붉은 열차는
-                        지금의 시간을 말해주고 있었다.<br>
-                        어떤 이들도 알아채지
-                        못했지만 모두들 알고 있던 그 시간.<br>
-                        나는 아직도 그때의 내가 너무 미워서
-                        눈앞에 아른아르고 있다.
-                    </div>
+            </div>
+            <div class="ui two bottom attached buttons">
+                <!-- <input type="file" name="file" class="inputfile" id="embedpollfileinput" autocomplete="off" required> -->
+                <input type="file" name="retry" id="retry" autocomplete="off" required
+                    onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
+                <label for="retry" class="ui negative button">
+                    <i class="ui redo icon"></i>
+                    Retry
+                </label>
+
+                <!-- TODO SHARE -->
+                <input type="file" name="share" id="share" autocomplete="off" required
+                    onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
+                <label for="share" class="ui primary button">
+                    <i class="ui share icon"></i>
+                    Share
+                </label>
+
+                <!-- <div class="ui primary button">
+                    <i class="share icon"></i>
+                    Share
+                </div> -->
+            </div>
+
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- <div class="ui middle aligned center aligned grid container">
+        <div class="ui card">
+            <div class="image">
+                <img src="https://semantic-ui.com/images/movies/watchmen-horizontal.jpg">
+            </div>
+            <div class="content">
+                <div class="header">Watchmen</div>
+                <div class="description">
+                    선로에 놓여진 붉은 열차는
+                    지금의 시간을 말해주고 있었다.<br>
+                    어떤 이들도 알아채지
+                    못했지만 모두들 알고 있던 그 시간.<br>
+                    나는 아직도 그때의 내가 너무 미워서
+                    눈앞에 아른아르고 있다.
+                    선로에 놓여진 붉은 열차는
+                    지금의 시간을 말해주고 있었다.<br>
+                    어떤 이들도 알아채지
+                    못했지만 모두들 알고 있던 그 시간.<br>
+                    나는 아직도 그때의 내가 너무 미워서
+                    눈앞에 아른아르고 있다.
                 </div>
-                <div class="ui two bottom attached buttons">
-                    <div class="ui button">
-                        <i class="redo icon"></i>
-                        Retry
-                    </div>
-                    <div class="ui primary button">
-                        <i class="share icon"></i>
-                        Share
-                    </div>
+            </div>
+            <div class="ui two bottom attached buttons">
+                <div class="ui button">
+                    <i class="redo icon"></i>
+                    Retry
+                </div>
+                <div class="ui primary button">
+                    <i class="share icon"></i>
+                    Share
                 </div>
             </div>
         </div>
+    </div> -->
 
 
     </div>
