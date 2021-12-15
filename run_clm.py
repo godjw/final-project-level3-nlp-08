@@ -23,6 +23,9 @@ import logging
 import math
 import os
 import sys
+import re
+import random
+import pickle
 from dataclasses import dataclass, field
 from itertools import chain
 from tarfile import BLOCKSIZE
@@ -50,7 +53,15 @@ from transformers.trainer_utils import get_last_checkpoint, IntervalStrategy, Sc
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
+from PyKomoran import Komoran, DEFAULT_MODEL
+from soynlp import DoublespaceLineCorpus
+from soynlp.word import WordExtractor, pmi as pmi_func
+from soynlp.tokenizer import LTokenizer
+from soynlp.vectorizer import sent_to_word_contexts_matrix
+from soynlp.utils import most_similar
+
 import wandb
+from tqdm import tqdm
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.12.5")
@@ -68,9 +79,14 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 class ModelNames:
     kogpt_skt_trinity = "skt/ko-gpt-trinity-1.2B-v0.5"
     kogpt_kakaobrain = "kakaobrain/kogpt"
+    kopgt_punct_wrapper = "lexiconium/kogpt-trinity"
 
 
-REVISIONS = {ModelNames.kogpt_skt_trinity: None, ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b"}
+REVISIONS = {
+    ModelNames.kogpt_skt_trinity: None,
+    ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b",
+    ModelNames.kopgt_punct_wrapper: "punct_wrapper-related_words-overfit",
+}
 SPECIAL_TOKENS = {
     ModelNames.kogpt_skt_trinity: {
         "bos_token": "<s>",
@@ -85,6 +101,13 @@ SPECIAL_TOKENS = {
         "unk_token": "[UNK]",
         "pad_token": "[PAD]",
         "mask_token": "[MASK]",
+    },
+    ModelNames.kopgt_punct_wrapper: {
+        "bos_token": "<s>",
+        "eos_token": "</s>",
+        "unk_token": "<unk>",
+        "pad_token": "<pad>",
+        "mask_token": "<mask>",
     },
 }
 
@@ -271,7 +294,7 @@ class TrainingArguments(_TrainingArguments):
     )
 
     gradient_accumulation_steps: int = field(
-        default=256,
+        default=88,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
@@ -541,9 +564,24 @@ def main():
     # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
     tok_logger = transformers.utils.logging.get_logger("transformers.tokenization_utils_base")
 
+    with open("/opt/ml/data/namuwiki_filtered_cohesion.pickle", "rb") as f:
+        cohesions = pickle.load(f)
+    l_cohesions = {word: score[0] for word, score in cohesions.items()}
+    l_tokenizer = LTokenizer(l_cohesions)
+
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
             examples[text_column_name] = list(map(lambda x: str(x), examples[text_column_name]))
+            for n, text in enumerate(examples[text_column_name]):
+                sents = text.split("\n")
+                tokenized_sents = [l_tokenizer(sent) for sent in random.sample(sents, k=min(len(sents), 5))]
+                keywords = []
+                for sent in tokenized_sents:
+                    keywords_elements = random.sample(sent, k=min(len(sent), 2))
+                    keywords.extend(keywords_elements)
+
+                examples[text_column_name][n] = f"@{', '.join(keywords)}@<usr>\n{examples[text_column_name][n]}<usr>"
+
             output = tokenizer(examples[text_column_name])
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
@@ -701,13 +739,13 @@ def main():
 
 if __name__ == "__main__":
     # os.environ["WANDB_DISABLED"] = "true"
-    os.environ['WANDB_WATCH'] = 'false'
+    os.environ["WANDB_WATCH"] = "false"
 
     wandb.login()
     wandb.init(
-        project="base",
+        project="punct_keywords_wrapper",
         entity="lexiconium",
-        name="kogpt_trinity_vanilla_with_entire_data",
+        name="kogpt_trinity_vanilla_with_poem100-400_data",
         group="clm",
     )
 

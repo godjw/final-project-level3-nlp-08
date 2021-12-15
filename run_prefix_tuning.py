@@ -23,6 +23,7 @@ import logging
 import math
 import os
 import sys
+import re
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Optional
@@ -48,7 +49,15 @@ from transformers.trainer_utils import get_last_checkpoint, IntervalStrategy, Sc
 from transformers.utils import check_min_version
 from transformers.utils.versions import require_version
 
+from PyKomoran import Komoran, DEFAULT_MODEL
+from soynlp import DoublespaceLineCorpus
+from soynlp.word import WordExtractor, pmi as pmi_func
+from soynlp.tokenizer import LTokenizer
+from soynlp.vectorizer import sent_to_word_contexts_matrix
+from soynlp.utils import most_similar
+
 import wandb
+from tqdm import tqdm
 
 from models.prefix_tuning.gpt2 import GPT2PrefixTuningForCausalLM, NUM_P
 from models.prefix_tuning.gptj import GPTJPrefixTuningForCausalLM
@@ -69,9 +78,14 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 class ModelNames:
     kogpt_skt_trinity = "skt/ko-gpt-trinity-1.2B-v0.5"
     kogpt_kakaobrain = "kakaobrain/kogpt"
+    kopgt_punct_wrapper = "lexiconium/kogpt-trinity"
 
 
-REVISIONS = {ModelNames.kogpt_skt_trinity: None, ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b"}
+REVISIONS = {
+    ModelNames.kogpt_skt_trinity: None,
+    ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b",
+    ModelNames.kopgt_punct_wrapper: "punct_wrapper-related_words-overfit",
+}
 SPECIAL_TOKENS = {
     ModelNames.kogpt_skt_trinity: {
         "bos_token": "<s>",
@@ -87,9 +101,16 @@ SPECIAL_TOKENS = {
         "pad_token": "[PAD]",
         "mask_token": "[MASK]",
     },
+    ModelNames.kopgt_punct_wrapper: {
+        "bos_token": "<s>",
+        "eos_token": "</s>",
+        "unk_token": "<unk>",
+        "pad_token": "<pad>",
+        "mask_token": "<mask>",
+    },
 }
 
-MODEL_NAME = ModelNames.kogpt_skt_trinity
+MODEL_NAME = ModelNames.kopgt_punct_wrapper
 
 
 @dataclass
@@ -260,7 +281,7 @@ class TrainingArguments(_TrainingArguments):
     do_eval: bool = field(default=True, metadata={"help": "Whether to run eval on the dev set."})
     do_predict: bool = field(default=False, metadata={"help": "Whether to run predictions on the test set."})
     evaluation_strategy: IntervalStrategy = field(
-        default="epoch",
+        default=IntervalStrategy.EPOCH,
         metadata={"help": "The evaluation strategy to use."},
     )
 
@@ -272,12 +293,12 @@ class TrainingArguments(_TrainingArguments):
     )
 
     gradient_accumulation_steps: int = field(
-        default=128,
+        default=44,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
-    learning_rate: float = field(default=2e-05, metadata={"help": "The initial learning rate for AdamW."})
-    weight_decay: float = field(default=0.1908, metadata={"help": "Weight decay for AdamW if we apply some."})
+    learning_rate: float = field(default=5e-05, metadata={"help": "The initial learning rate for AdamW."})
+    weight_decay: float = field(default=0.2, metadata={"help": "Weight decay for AdamW if we apply some."})
     adam_beta1: float = field(default=0.9, metadata={"help": "Beta1 for AdamW optimizer"})
     adam_beta2: float = field(default=0.999, metadata={"help": "Beta2 for AdamW optimizer"})
     adam_epsilon: float = field(default=1e-8, metadata={"help": "Epsilon for AdamW optimizer."})
@@ -509,7 +530,7 @@ def main():
             logger.info(f"Overriding config: {model_args.config_overrides}")
             config.update_from_string(model_args.config_overrides)
             logger.info(f"New config: {config}")
-    
+
     if isinstance(config, GPTJConfig):
         config.tie_word_embeddings = False
 
@@ -542,9 +563,83 @@ def main():
     # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
     tok_logger = transformers.utils.logging.get_logger("transformers.tokenization_utils_base")
 
+    #
+    komoran = Komoran(DEFAULT_MODEL["FULL"])
+
+    corpus_path = "/opt/ml/data/total_only_text.txt"
+    corpus = DoublespaceLineCorpus(corpus_path, iter_sent=True)
+
+    word_extractor = WordExtractor()
+    word_extractor.train(corpus)
+
+    cohesions = word_extractor.all_cohesion_scores()
+    l_cohesions = {word: score[0] for word, score in cohesions.items()}
+    l_tokenizer = LTokenizer(l_cohesions)
+
+    x, idx2vocab = sent_to_word_contexts_matrix(
+        corpus,
+        windows=3,
+        min_tf=15,
+        tokenizer=l_tokenizer,
+        dynamic_weight=False,
+        verbose=True,
+    )
+    pmi, px, py = pmi_func(x, min_pmi=0, alpha=0.0001, beta=0.95)
+    vocab2idx = {vocab: idx for idx, vocab in enumerate(idx2vocab)}
+    pattern = re.compile(pattern="[^가-힣]+")
+
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
             examples[text_column_name] = list(map(lambda x: str(x), examples[text_column_name]))
+            # for n, title in enumerate(examples["title"]):
+            #     examples[text_column_name][n] = f"@{title}@<usr>\n{examples[text_column_name][n]}<usr>"
+
+            for n, text in enumerate(tqdm(examples[text_column_name])):
+                keywords = set()
+                # for word in komoran.get_nouns(text):
+                for word in komoran.get_nouns(text[:32]):
+                    try:
+                        query = vocab2idx[word]
+                    except KeyError:
+                        continue
+
+                    query = vocab2idx[word]
+
+                    submatrix = pmi[query, :].tocsr()  # get the row of query
+                    contexts = submatrix.nonzero()[1]  # nonzero() return (rows, columns)
+                    pmi_i = submatrix.data
+
+                    most_relateds = [(idx, pmi_ij) for idx, pmi_ij in zip(contexts, pmi_i)]
+                    most_relateds = sorted(most_relateds, key=lambda x: -x[1])[:3]
+                    most_relateds = [(idx2vocab[idx], pmi_ij) for idx, pmi_ij in most_relateds]
+
+                    similar = most_similar(word, pmi, vocab2idx, idx2vocab, topk=3)
+
+                    related_words, _ = zip(*most_relateds)
+                    similar_words, _ = zip(*similar)
+
+                    related = []
+                    for words in related_words:
+                        tmp = komoran.get_morphes_by_tags(words)
+                        if tmp:
+                            tmp = pattern.sub("", tmp[0])
+                            if tmp:
+                                related.append(tmp)
+
+                    similar = []
+                    for words in similar_words:
+                        tmp = komoran.get_morphes_by_tags(words)
+                        if tmp:
+                            tmp = pattern.sub("", tmp[0])
+                            if tmp:
+                                similar.append(tmp)
+
+                    keywords |= set([word]) | (set(related) & set(similar))
+                # keywords = list(keywords) if len(keywords) < 5 else random.sample(list(keywords), 5)
+                keywords = list(keywords)
+                keywords = ", ".join(keywords)
+                examples[text_column_name][n] = f"@{keywords}@<usr>\n{examples[text_column_name][n]}<usr>"
+
             output = tokenizer(examples[text_column_name])
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
@@ -705,14 +800,14 @@ def main():
 
 if __name__ == "__main__":
     # os.environ["WANDB_DISABLED"] = "true"
-    os.environ['WANDB_WATCH'] = 'false'
+    os.environ["WANDB_WATCH"] = "false"
 
     wandb.login()
     wandb.init(
-        project="prefix_tuning",
+        project="prefix_tuning_punct_keyword_wrapper",
         entity="lexiconium",
-        name="kogpt_trinity_vanilla_with_poem_data",
-        group="clm",
+        name="quality_poems",
+        group="kogpt_trinity",
     )
 
     main()
