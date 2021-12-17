@@ -6,12 +6,15 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>청계산셰르파의 감성시인</title>
 
     <!-- Site Properties -->
     <link rel="stylesheet" type="text/css" href="web/semantic/semantic.css">
     <script src="https://code.jquery.com/jquery-3.1.1.min.js"
         integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
     <script src="web/semantic/semantic.js"></script>
+    <!-- Go to www.addthis.com/dashboard to customize your tools -->
+    <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-61bc1ee3b41feceb"></script>
 
 </head>
 
@@ -92,68 +95,35 @@
 
     </div>
 
-    <!-- <h3 class="ui center aligned header">Text Container</h3> -->
-    <!-- <div class="ui text container">
-
-        <div class="ui placeholder segment">
-            <div class="ui icon header">
-                <i class="upload icon"></i>
-                Select a image.
-            </div>
-
-            <input type="file" (change)="fileEvent($event)" class="inputfile" id="embedpollfileinput" />
-
-            <label for="embedpollfileinput" class="ui large green right floated button">
-                <i class="ui upload icon"></i>
-                Upload image
-            </label>
-
-            <br>
-
-
-        </div> -->
 
     <div class="ui middle aligned center aligned grid container">
         <!-- <input type="button" class="ui primary button" id="generate_button" onclick="generate_button({filename});"
                 value="Generate" /> -->
         <input type="button" class="ui primary button" value="Generate"
-            onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
+            onclick="window.location.href='{{ url_for( 'index', filename=filename) }}';">
 
-        <!-- <form method="post" action="/" enctype="multipart/form-data">
-                <input type="button" class="ui primary button" value="Generate"
-                    onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
-            </form> -->
-        <!-- <form action="{{ url_for('generate', filename=filename) }}" method="post">
-                <input type="button" class="ui primary button" value="Generate">
-            </form> -->
     </div>
-    <!-- <script>
-            location.href = Flask.url_for('generate', filename = filename)
-            // {
-            //     { url_for('generate', filename = filename) }
-            // }
-            // function generate_button(filename) {
-            //     { url_for('generate', filename = filename) }
-            // }
-        </script> -->
-    <!-- </div> -->
+    <div>
+    </div>
 
-    <div class="ui middle aligned center aligned grid container">
+    <div class="ui middle aligned center aligned grid container" style="padding-bottom:70px">
         {% if generated_poem %}
         <div class="ui card">
             <div class="image">
                 <img src="{{ url_for('display_image', filename=filename) }}" width="224" height="224">
             </div>
             <div class="content">
-                <div class="header">Watchmen</div>
+                <div class="header"></div>
                 <div class="description">
-                    {{ generated_poem }}
+                    {% for row in generated_poem.split('\n') %}
+                    {{row}}<br>
+                    {% endfor %}
                 </div>
             </div>
             <div class="ui two bottom attached buttons">
                 <!-- <input type="file" name="file" class="inputfile" id="embedpollfileinput" autocomplete="off" required> -->
                 <input type="file" name="retry" id="retry" autocomplete="off" required
-                    onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
+                    onclick="window.location.href='{{ url_for( 'index', filename=filename) }}';">
                 <label for="retry" class="ui negative button">
                     <i class="ui redo icon"></i>
                     Retry
@@ -161,7 +131,7 @@
 
                 <!-- TODO SHARE -->
                 <input type="file" name="share" id="share" autocomplete="off" required
-                    onclick="window.location.href='{{ url_for( 'generate', filename=filename) }}';">
+                    onclick="window.location.href='{{ url_for( 'index', filename=filename) }}';">
                 <label for="share" class="ui primary button">
                     <i class="ui share icon"></i>
                     Share
@@ -177,43 +147,6 @@
         {% endif %}
     </div>
 
-    <!-- <div class="ui middle aligned center aligned grid container">
-        <div class="ui card">
-            <div class="image">
-                <img src="https://semantic-ui.com/images/movies/watchmen-horizontal.jpg">
-            </div>
-            <div class="content">
-                <div class="header">Watchmen</div>
-                <div class="description">
-                    선로에 놓여진 붉은 열차는
-                    지금의 시간을 말해주고 있었다.<br>
-                    어떤 이들도 알아채지
-                    못했지만 모두들 알고 있던 그 시간.<br>
-                    나는 아직도 그때의 내가 너무 미워서
-                    눈앞에 아른아르고 있다.
-                    선로에 놓여진 붉은 열차는
-                    지금의 시간을 말해주고 있었다.<br>
-                    어떤 이들도 알아채지
-                    못했지만 모두들 알고 있던 그 시간.<br>
-                    나는 아직도 그때의 내가 너무 미워서
-                    눈앞에 아른아르고 있다.
-                </div>
-            </div>
-            <div class="ui two bottom attached buttons">
-                <div class="ui button">
-                    <i class="redo icon"></i>
-                    Retry
-                </div>
-                <div class="ui primary button">
-                    <i class="share icon"></i>
-                    Share
-                </div>
-            </div>
-        </div>
-    </div> -->
-
-
-    </div>
 
     <!-- Content JS HERE !-->
     <style>
