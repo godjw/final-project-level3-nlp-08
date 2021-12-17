@@ -17,7 +17,6 @@
 
 from typing import Callable, Iterable, List, Optional, Tuple, Union
 import warnings
-import numpy
 
 import torch
 import torch.utils.checkpoint
