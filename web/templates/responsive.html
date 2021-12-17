@@ -13,9 +13,9 @@
     <script src="https://code.jquery.com/jquery-3.1.1.min.js"
         integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
     <script src="web/semantic/semantic.js"></script>
-    <!-- Go to www.addthis.com/dashboard to customize your tools -->
-    <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-61bc1ee3b41feceb"></script>
 
+    <!-- <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-61bc1ee3b41feceb"></script> -->
+    <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-61bc1ee3b41feceb"></script>
 </head>
 
 <body>
@@ -105,47 +105,51 @@
     </div>
     <div>
     </div>
-
-    <div class="ui middle aligned center aligned grid container" style="padding-bottom:70px">
-        {% if generated_poem %}
-        <div class="ui card">
-            <div class="image">
-                <img src="{{ url_for('display_image', filename=filename) }}" width="224" height="224">
-            </div>
-            <div class="content">
-                <div class="header"></div>
-                <div class="description">
-                    {% for row in generated_poem.split('\n') %}
-                    {{row}}<br>
-                    {% endfor %}
+    <div>
+        <div class="ui middle aligned center aligned grid container" style="padding-bottom:30px">
+            {% if generated_poem %}
+            <div class="ui card">
+                <div class="image">
+                    <img src="{{ url_for('display_image', filename=filename) }}" width="224" height="224">
                 </div>
-            </div>
-            <div class="ui two bottom attached buttons">
-                <!-- <input type="file" name="file" class="inputfile" id="embedpollfileinput" autocomplete="off" required> -->
-                <input type="file" name="retry" id="retry" autocomplete="off" required
-                    onclick="window.location.href='{{ url_for( 'index', filename=filename) }}';">
-                <label for="retry" class="ui negative button">
-                    <i class="ui redo icon"></i>
-                    Retry
-                </label>
+                <div class="content">
+                    <div class="header"></div>
+                    <div class="description">
+                        {% for row in generated_poem.split('\n') %}
+                        {{row}}<br>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="ui two bottom attached buttons">
+                    <!-- <input type="file" name="file" class="inputfile" id="embedpollfileinput" autocomplete="off" required> -->
+                    <input type="file" name="retry" id="retry" autocomplete="off" required
+                        onclick="window.location.href='{{ url_for( 'index', filename=filename) }}';">
+                    <label for="retry" class="ui negative button">
+                        <i class="ui redo icon"></i>
+                        Retry
+                    </label>
 
-                <!-- TODO SHARE -->
-                <input type="file" name="share" id="share" autocomplete="off" required
-                    onclick="window.location.href='{{ url_for( 'index', filename=filename) }}';">
-                <label for="share" class="ui primary button">
-                    <i class="ui share icon"></i>
-                    Share
-                </label>
+                    <!-- TODO SHARE -->
+                    <input type="file" name="share" id="share" autocomplete="off" required
+                        onclick="window.location.href='{{ url_for( 'index', filename=filename) }}';">
+                    <label for="share" class="ui primary button">
+                        <i class="ui share icon"></i>
+                        Share
+                    </label>
 
-                <!-- <div class="ui primary button">
+                    <!-- <div class="ui primary button">
                     <i class="share icon"></i>
                     Share
                 </div> -->
+                </div>
+
             </div>
 
         </div>
+        <div align="center" class="addthis_inline_share_toolbox" style="padding-bottom:70px"></div>
         {% endif %}
     </div>
+
 
 
     <!-- Content JS HERE !-->

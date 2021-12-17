@@ -56,17 +56,16 @@ def index():
     # filename = request.args.get("filename")
     if request.args.get("filename"):
         filename = request.args.get("filename").split("/")[-1]
-        # print(request.args.get("generated_poem"))
-        # generated_poem = generate_poem_from_image(
-        #     vision_encoder_decoder_model=vision_encoder_decoder_model,
-        #     vision_encoder_decoder_tokenizer=vision_encoder_decoder_tokenizer,
-        #     poem_generator=poem_generator,
-        #     poem_tokenizer=poem_tokenizer,
-        #     feature_extractor=feature_extractor,
-        #     file_folder=app.config["UPLOAD_FOLDER"],
-        #     filename=filename,
-        # )
-        generated_poem = "aaaaaa\nssss\nsssss\nsssss\n"
+        print(request.args.get("generated_poem"))
+        generated_poem = generate_poem_from_image(
+            vision_encoder_decoder_model=vision_encoder_decoder_model,
+            vision_encoder_decoder_tokenizer=vision_encoder_decoder_tokenizer,
+            poem_generator=poem_generator,
+            poem_tokenizer=poem_tokenizer,
+            feature_extractor=feature_extractor,
+            file_folder=app.config["UPLOAD_FOLDER"],
+            filename=filename,
+        )
         return render_template(
             "responsive.html",
             filename=filename,
@@ -123,33 +122,33 @@ def upload_image():
 
 if __name__ == "__main__":
 
-    # # device setting
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # # device = "cpu"
+    # device setting
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = "cpu"
 
-    # # load model
-    # encoder_model_name_or_path = "ddobokki/vision-encoder-decoder-vit-gpt2-coco-ko"
-    # feature_extractor = ViTFeatureExtractor.from_pretrained(encoder_model_name_or_path)
-    # vision_encoder_decoder_tokenizer = PreTrainedTokenizerFast.from_pretrained(
-    #     encoder_model_name_or_path
-    # )
+    # load model
+    encoder_model_name_or_path = "ddobokki/vision-encoder-decoder-vit-gpt2-coco-ko"
+    feature_extractor = ViTFeatureExtractor.from_pretrained(encoder_model_name_or_path)
+    vision_encoder_decoder_tokenizer = PreTrainedTokenizerFast.from_pretrained(
+        encoder_model_name_or_path
+    )
 
-    # vision_encoder_decoder_model = VisionEncoderDecoderModel.from_pretrained(
-    #     encoder_model_name_or_path
-    # )
-    # vision_encoder_decoder_model.to(device)
-    # print("captioning model load")
+    vision_encoder_decoder_model = VisionEncoderDecoderModel.from_pretrained(
+        encoder_model_name_or_path
+    )
+    vision_encoder_decoder_model.to(device)
+    print("captioning model load")
 
-    # poem_generator_model_path = "CheonggyeMountain-Sherpa/kogpt-trinity-poem"
-    # poem_generator = AutoModelForCausalLM.from_pretrained(
-    #     poem_generator_model_path, use_auth_token=True
-    # )
-    # poem_tokenizer = AutoTokenizer.from_pretrained(
-    #     poem_generator_model_path, use_auth_token=True
-    # )
-    # poem_generator.to(device)
-    # poem_generator.eval()
+    poem_generator_model_path = "CheonggyeMountain-Sherpa/kogpt-trinity-poem"
+    poem_generator = AutoModelForCausalLM.from_pretrained(
+        poem_generator_model_path, use_auth_token=True
+    )
+    poem_tokenizer = AutoTokenizer.from_pretrained(
+        poem_generator_model_path, use_auth_token=True
+    )
+    poem_generator.to(device)
+    poem_generator.eval()
 
-    # print("generator model load")
+    print("generator model load")
 
-    app.run(host="0.0.0.0", port=6006, debug=True, use_reloader=True)
+    app.run(host="0.0.0.0", port=6006, debug=True, use_reloader=False)
