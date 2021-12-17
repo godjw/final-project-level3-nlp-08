@@ -63,6 +63,8 @@ from soynlp.utils import most_similar
 import wandb
 from tqdm import tqdm
 
+from models.noise_injection.gpt2 import GPT2NoiseInjectionForCausalLM
+
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.12.5")
 
@@ -227,7 +229,7 @@ class DataTrainingArguments:
         default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
     validation_split_percentage: Optional[int] = field(
-        default=10,
+        default=5,
         metadata={
             "help": "The percentage of the train set used as validation set in case there's no validation split"
         },
@@ -544,7 +546,7 @@ def main():
     }
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
 
-    model = AutoModelForCausalLM.from_pretrained(
+    model = GPT2NoiseInjectionForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         revision=model_args.model_revision,
         pad_token_id=tokenizer.eos_token_id,
@@ -580,7 +582,7 @@ def main():
                     keywords_elements = random.sample(sent, k=min(len(sent), 2))
                     keywords.extend(keywords_elements)
 
-                examples[text_column_name][n] = f"@{', '.join(keywords)}@<usr>\n{examples[text_column_name][n]}<usr>"
+                examples[text_column_name][n] = f"@{', '.join(keywords)}@<d>\n{examples[text_column_name][n]}</d>"
 
             output = tokenizer(examples[text_column_name])
         # clm input could be much much longer than block_size
@@ -663,12 +665,12 @@ def main():
         if data_args.max_eval_samples is not None:
             eval_dataset = eval_dataset.select(range(data_args.max_eval_samples))
 
-    metric_other_than_loss = training_args.metric_for_best_model != "loss"
-    if metric_other_than_loss:
-        metric = load_metric(training_args.metric_for_best_model)
+    # metric_other_than_loss = training_args.metric_for_best_model != "loss"
+    # if training_args.do_eval and metric_other_than_loss:
+    #     metric = load_metric(training_args.metric_for_best_model)
 
-        def compute_metrics(predictions, references):
-            return metric.compute(predictions=predictions, references=references)
+    #     def compute_metrics(predictions, references):
+    #         return metric.compute(predictions=predictions, references=references)
 
     # Initialize our Trainer
     trainer = Trainer(
@@ -679,7 +681,7 @@ def main():
         tokenizer=tokenizer,
         # Data collator will default to DataCollatorWithPadding, so we change it.
         data_collator=default_data_collator,
-        compute_metrics=compute_metrics if metric_other_than_loss else None,
+        # compute_metrics=compute_metrics if metric_other_than_loss else None,
     )
 
     # Training
@@ -738,15 +740,15 @@ def main():
 
 
 if __name__ == "__main__":
-    # os.environ["WANDB_DISABLED"] = "true"
-    os.environ["WANDB_WATCH"] = "false"
+    os.environ["WANDB_DISABLED"] = "true"
+    # os.environ["WANDB_WATCH"] = "false"
 
-    wandb.login()
-    wandb.init(
-        project="punct_keywords_wrapper",
-        entity="lexiconium",
-        name="kogpt_trinity_vanilla_with_poem100-400_data",
-        group="clm",
-    )
+    # wandb.login()
+    # wandb.init(
+    #     project="punct_keywords_wrapper",
+    #     entity="lexiconium",
+    #     name="kogpt_trinity_vanilla_with_poem100-400_data_noise_injection",
+    #     group="clm",
+    # )
 
     main()
