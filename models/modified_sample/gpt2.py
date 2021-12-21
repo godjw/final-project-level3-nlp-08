@@ -405,7 +405,7 @@ class GPT2ModifiedSampleForCausalLM(GPT2PreTrainedModel):
         this_peer_finished = False  # used by synced_gpus only
         # auto-regressive generation
         while True:
-            if cur_len - prev_len > 7:
+            if cur_len - prev_len > 10:
                 input_ids = prev_input_ids
                 scores = deepcopy(prev_scores) if prev_scores else None
                 decoder_attentions = deepcopy(prev_decoder_attentions) if prev_decoder_attentions else None
