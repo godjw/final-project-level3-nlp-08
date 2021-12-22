@@ -63,16 +63,20 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 @dataclass
 class ModelNames:
+    kogpt_skt_base = "skt/kogpt2-base-v2"
     kogpt_skt_trinity = "skt/ko-gpt-trinity-1.2B-v0.5"
     kogpt_kakaobrain = "kakaobrain/kogpt"
+    gpt_poem = "CheonggyeMountain-Sherpa/kogpt-trinity-poem"
 
 
 REVISIONS = {
+    ModelNames.gpt_poem: "main",
+    ModelNames.kogpt_skt_base: "main",
     ModelNames.kogpt_skt_trinity: "main",
     ModelNames.kogpt_kakaobrain: "KoGPT6B-ryan1.5b-float16"
 }
 
-MODEL_NAME = ModelNames.kogpt_skt_trinity
+MODEL_NAME = ModelNames.gpt_poem
 
 
 @dataclass
@@ -122,7 +126,7 @@ class ModelArguments:
         },
     )
     use_auth_token: bool = field(
-        default=False,
+        default=True,
         metadata={
             "help": "Will use the token generated when running `transformers-cli login` (necessary to use this script "
             "with private models)."
@@ -152,10 +156,10 @@ class DataTrainingArguments:
         metadata={"help": "The configuration name of the dataset to use (via the datasets library)."},
     )
     train_file: Optional[str] = field(
-        default="/opt/ml/plmdata/poem_train.csv", metadata={"help": "The input training data file (a text file)."}
+        default="/opt/ml/plmdata/400_train.csv", metadata={"help": "The input training data file (a text file)."}
     )
     validation_file: Optional[str] = field(
-        default="/opt/ml/plmdata/poem_validation.csv",
+        default=None,
         metadata={
             "help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."
         },
@@ -187,7 +191,7 @@ class DataTrainingArguments:
         default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
     validation_split_percentage: Optional[int] = field(
-        default=10,
+        default=0,
         metadata={
             "help": "The percentage of the train set used as validation set in case there's no validation split"
         },
@@ -242,7 +246,7 @@ class TrainingArguments(_TrainingArguments):
     do_eval: bool = field(default=True, metadata={"help": "Whether to run eval on the dev set."})
     do_predict: bool = field(default=False, metadata={"help": "Whether to run predictions on the test set."})
     evaluation_strategy: IntervalStrategy = field(
-        default="epoch",
+        default="no",
         metadata={"help": "The evaluation strategy to use."},
     )
 
@@ -254,7 +258,7 @@ class TrainingArguments(_TrainingArguments):
     )
 
     gradient_accumulation_steps: int = field(
-        default=128,
+        default=1,
         metadata={"help": "Number of updates steps to accumulate before performing a backward/update pass."},
     )
 
@@ -265,7 +269,7 @@ class TrainingArguments(_TrainingArguments):
     adam_epsilon: float = field(default=1e-8, metadata={"help": "Epsilon for AdamW optimizer."})
     max_grad_norm: float = field(default=1.0, metadata={"help": "Max gradient norm."})
     num_train_epochs: float = field(
-        default=30.0, metadata={"help": "Total number of training epochs to perform."}
+        default=5.0, metadata={"help": "Total number of training epochs to perform."}
     )
     lr_scheduler_type: SchedulerType = field(
         default=SchedulerType.LINEAR,
@@ -280,7 +284,7 @@ class TrainingArguments(_TrainingArguments):
         metadata={"help": "The checkpoint save strategy to use."},
     )
     save_total_limit: Optional[int] = field(
-        default=2,
+        default=1,
         metadata={
             "help": (
                 "Limit the total amount of checkpoints. "
@@ -318,7 +322,7 @@ class TrainingArguments(_TrainingArguments):
     )
 
     load_best_model_at_end: Optional[bool] = field(
-        default=True,
+        default=False,
         metadata={
             "help": "Whether or not to load the best model found during training at the end of training."
         },
@@ -634,9 +638,9 @@ def main():
     )
     #wandb
     wandb.init(project="plm_poem", 
-           name="kogpt_trinity_with_poem.csv",
-           tags=["baseline", "1e-5", "plm"],
-           group="kogpt_trinity_poem")
+           name="kogpt_trinity_retrain_finetune400",
+           tags=["baseline", "1e-5", "plm", "finetune"],
+           group="kogpt_trinity_retrain")
 
     # Training
     if training_args.do_train:
