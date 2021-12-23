@@ -50,26 +50,32 @@ def display_image(filename):
     )
 
 
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+
 @app.route("/")
 def index():
-    print(urlparse(request.url))
     # filename = request.args.get("filename")
     if request.args.get("filename"):
         filename = request.args.get("filename").split("/")[-1]
-        print(request.args.get("generated_poem"))
-        generated_poem = generate_poem_from_image(
+        generated_poems = generate_poem_from_image(
             vision_encoder_decoder_model=vision_encoder_decoder_model,
             vision_encoder_decoder_tokenizer=vision_encoder_decoder_tokenizer,
+            feature_extractor=feature_extractor,
             poem_generator=poem_generator,
             poem_tokenizer=poem_tokenizer,
-            feature_extractor=feature_extractor,
+            hk_poem_generator=hk_poem_generator,
+            hk_poem_tokenizer=hk_poem_tokenizer,
             file_folder=app.config["UPLOAD_FOLDER"],
             filename=filename,
         )
+
         return render_template(
             "responsive.html",
             filename=filename,
-            generated_poem=generated_poem,
+            generated_poems=generated_poems,
         )
     else:
         return render_template("responsive.html")
@@ -97,17 +103,6 @@ def upload_image():
         else:
             flash("Allowed image types are -> png, jpg, jpeg, gif")
             return redirect(request.url)
-
-    elif request.method == "GET":
-        # print(urlparse(request.url))
-        filename = request.args.get("filename")
-        generated_poem = request.args.get("generated_poem")
-
-        return render_template(
-            "responsive.html",
-            filename=filename,
-            generated_poem=generated_poem,
-        )
 
 
 # TODO
@@ -148,6 +143,14 @@ if __name__ == "__main__":
     )
     poem_generator.to(device)
     poem_generator.eval()
+
+    hk_poem_generator_model_path = "ddobokki/gpt2_poem"
+    hk_poem_generator = AutoModelForCausalLM.from_pretrained(
+        hk_poem_generator_model_path
+    )
+    hk_poem_tokenizer = AutoTokenizer.from_pretrained(hk_poem_generator_model_path)
+    hk_poem_generator.to(device)
+    hk_poem_generator.eval()
 
     print("generator model load")
 
