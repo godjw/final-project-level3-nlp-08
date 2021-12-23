@@ -1,5 +1,5 @@
 from io import BytesIO
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, render_template
 
 from PIL import Image
 import os
@@ -27,7 +27,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Hello, World!\n"
+    return render_template("test.html")
 
 
 def load_model(pretrained_path):
@@ -74,6 +74,7 @@ def feedback():
     print(poem_id)
     cursor.execute(f"update poem set feedback={feedback} where poem_id={poem_id};")
     conn.commit()
+
     return "success"
 
 
@@ -217,28 +218,28 @@ def generate():
 
 
 if __name__ == "__main__":
-    # poem_generator = AutoModelForCausalLM.from_pretrained(
-    #     "CheonggyeMountain-Sherpa/kogpt-trinity-poem", use_auth_token=True
-    # )
-    # poem_tokenizer = AutoTokenizer.from_pretrained(
-    #     "CheonggyeMountain-Sherpa/kogpt-trinity-poem", use_auth_token=True
-    # )
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # # device = "cpu"
-    # poem_generator.to(device)
-    # poem_generator.eval()
-    # print("capitoning_model load")
-    # # device setting
+    poem_generator = AutoModelForCausalLM.from_pretrained(
+        "CheonggyeMountain-Sherpa/kogpt-trinity-poem", use_auth_token=True
+    )
+    poem_tokenizer = AutoTokenizer.from_pretrained(
+        "CheonggyeMountain-Sherpa/kogpt-trinity-poem", use_auth_token=True
+    )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = "cpu"
+    poem_generator.to(device)
+    poem_generator.eval()
+    print("capitoning_model load")
+    # device setting
 
-    # # load feature extractor and tokenizer
-    # encoder_model_name_or_path = "ddobokki/vision-encoder-decoder-vit-gpt2-coco-ko"
-    # feature_extractor = ViTFeatureExtractor.from_pretrained(encoder_model_name_or_path)
-    # tokenizer = PreTrainedTokenizerFast.from_pretrained(encoder_model_name_or_path)
+    # load feature extractor and tokenizer
+    encoder_model_name_or_path = "ddobokki/vision-encoder-decoder-vit-gpt2-coco-ko"
+    feature_extractor = ViTFeatureExtractor.from_pretrained(encoder_model_name_or_path)
+    tokenizer = PreTrainedTokenizerFast.from_pretrained(encoder_model_name_or_path)
 
-    # # load model
-    # model = VisionEncoderDecoderModel.from_pretrained(encoder_model_name_or_path)
-    # model.to(device)
-    # print("generator model load")
+    # load model
+    model = VisionEncoderDecoderModel.from_pretrained(encoder_model_name_or_path)
+    model.to(device)
+    print("generator model load")
 
     app.run(host="0.0.0.0", port=6006, debug=True)
     # # generate_poem("아아아아아아아아")
